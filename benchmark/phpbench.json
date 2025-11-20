@@ -1,0 +1,16 @@
+{
+    "$schema": "./vendor/phpbench/phpbench/phpbench.schema.json",
+    "runner.bootstrap": "vendor/autoload.php",
+    "runner.path": "benchmarks",
+    "runner.iterations": [
+        5
+    ],
+    "runner.revs": [
+        100
+    ],
+    "report.generators": {
+        "default": {
+            "extends": "aggregate"
+        }
+    }
+}

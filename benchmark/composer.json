@@ -1,0 +1,18 @@
+{
+    "name": "mesak/php-rs-toon-benchmark",
+    "description": "Benchmark comparison between php-rs-toon (Rust) and toon-php",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "helgesverre/toon": "^1.0"
+    },
+    "require-dev": {
+        "phpbench/phpbench": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Benchmark\\\\": "src/"
+        }
+    }
+}

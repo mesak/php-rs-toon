@@ -1,0 +1,28 @@
+# Production Dockerfile for PHP 8.2 with php-rs-toon extension
+FROM php:8.2-cli
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    && docker-php-ext-install zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /app
+
+# Download and install the php-rs-toon extension from GitHub release
+RUN curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+    -o /usr/local/lib/php/extensions/no-debug-non-zts-20220829/libphp_rs_toon.so
+
+# Enable the extension
+RUN echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini
+
+# Verify extension is loaded
+RUN php -m | grep php-rs-toon
+
+CMD ["php", "-a"]

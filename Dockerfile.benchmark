@@ -1,0 +1,38 @@
+# Benchmark Dockerfile
+FROM php:8.2-cli
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Download and install php-rs-toon extension from GitHub release
+RUN mkdir -p /tmp/extension && \
+    cd /tmp/extension && \
+    curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+    -o libphp_rs_toon.so && \
+    mv libphp_rs_toon.so $(php-config --extension-dir)/ && \
+    echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini && \
+    cd / && rm -rf /tmp/extension
+
+# Verify extension is loaded
+RUN php -m | grep php-rs-toon || (echo "Extension not loaded!" && exit 1)
+
+# Set working directory
+WORKDIR /app
+
+# Copy benchmark files
+COPY benchmark/ /app/
+
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# Make script executable
+RUN chmod +x run-benchmarks.sh
+
+CMD ["./run-benchmarks.sh"]
