@@ -49,7 +49,7 @@ cat benchmark/results.md
 
 ```bash
 # Download from GitHub release
-curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
   -o libphp_rs_toon.so
 
 # Copy to PHP extension directory

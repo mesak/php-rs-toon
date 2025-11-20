@@ -18,8 +18,8 @@ The extension provides two core functions:
 
 | Function | Purpose | Since |
 |----------|---------|-------|
-| `toon_encode()` | Convert PHP array to TOON string | v0.1.0 |
-| `toon_decode()` | Parse TOON string to PHP array | v0.1.0 |
+| `toon_encode()` | Convert PHP array to TOON string | v1.0.0 |
+| `toon_decode()` | Parse TOON string to PHP array | v1.0.0 |
 
 ---
 

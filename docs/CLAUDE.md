@@ -130,6 +130,6 @@ Key settings:
 
 ## Version & Status
 
-- Current Version: 0.1.0
+- Current Version: 1.0.0
 - Status: Active development
 - Latest features: Enhanced string quoting/escaping, inline list parsing, expanded test suite

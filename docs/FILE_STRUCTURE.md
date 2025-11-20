@@ -74,7 +74,7 @@ pub enum ToonValue {
 ```toml
 [package]
 name = "php-rs-toon"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [lib]
@@ -325,7 +325,7 @@ docker run --rm -v $(pwd):/app php-rs-toon-debug bash -c \
 
 ## 📝 版本信息
 
-- **當前版本**: 0.1.0
+- **當前版本**: 1.0.0
 - **PHP 版本**: 8.0+
 - **Rust 版本**: 2021 edition
 - **編譯類型**: cdylib (共享庫)

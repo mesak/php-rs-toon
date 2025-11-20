@@ -29,7 +29,7 @@ docker run -d --name php-app php-rs-toon:prod php-fpm
 FROM php:8.2-cli
 
 # Download pre-built extension from GitHub release
-RUN curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+RUN curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
     -o $(php-config --extension-dir)/libphp_rs_toon.so
 
 # Enable extension
@@ -43,7 +43,7 @@ Create your own `Dockerfile`:
 FROM php:8.2-fpm
 
 # Install extension
-RUN curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+RUN curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
     -o $(php-config --extension-dir)/libphp_rs_toon.so && \
     echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini
 

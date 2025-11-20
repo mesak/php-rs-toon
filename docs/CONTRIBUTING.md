@@ -283,7 +283,7 @@ How did you test this?
 ```markdown
 **Environment**
 - PHP version: `php -v`
-- Extension version: [e.g., v0.1.0]
+- Extension version: [e.g., v1.0.0]
 - OS: [e.g., Ubuntu 22.04]
 
 **Steps to Reproduce**

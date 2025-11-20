@@ -39,7 +39,7 @@ docker run --rm php-rs-toon:8.2 php -r "var_dump(function_exists('toon_encode'))
 Download the pre-built `.so` file from the [latest release](https://github.com/mesak/php-rs-toon/releases):
 
 ```bash
-curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
   -o libphp_rs_toon.so
 ```
 

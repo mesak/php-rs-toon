@@ -14,7 +14,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Download and install php-rs-toon extension from GitHub release
 RUN mkdir -p /tmp/extension && \
     cd /tmp/extension && \
-    curl -L https://github.com/mesak/php-rs-toon/releases/download/v0.1.0/libphp_rs_toon.so \
+    curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
     -o libphp_rs_toon.so && \
     mv libphp_rs_toon.so $(php-config --extension-dir)/ && \
     echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini && \
