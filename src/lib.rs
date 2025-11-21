@@ -175,7 +175,12 @@ fn build_php_list(items: Vec<ToonValue>, depth: usize) -> PhpResult<ZBox<ZendHas
     for item in items {
         let mut child = toon_value_to_zval_impl(item, depth)?;
         unsafe {
-            zend_hash_next_index_insert(&mut *ht, std::ptr::addr_of_mut!(child));
+            let result = zend_hash_next_index_insert(&mut *ht, std::ptr::addr_of_mut!(child));
+            if result.is_null() {
+                return Err(PhpException::default(
+                    "Failed to insert into PHP list".to_string(),
+                ));
+            }
         }
         mem::forget(child);
     }
@@ -189,11 +194,19 @@ fn build_php_map(
     let mut ht = ZendHashTable::with_capacity(clamped_capacity(entries.len()));
     for (key, value) in entries {
         let mut child = toon_value_to_zval_impl(value, depth)?;
-        let maybe_index = key.parse::<i64>().ok();
+        
+        // Optimization: Only attempt to parse as integer if it looks like one.
+        // This avoids expensive parsing for common string keys.
+        let maybe_index = if !key.is_empty() && (key.as_bytes()[0] == b'-' || key.as_bytes()[0].is_ascii_digit()) {
+            key.parse::<i64>().ok()
+        } else {
+            None
+        };
+
         unsafe {
-            if let Some(idx) = maybe_index {
+            let result = if let Some(idx) = maybe_index {
                 #[allow(clippy::cast_sign_loss)]
-                zend_hash_index_update(&mut *ht, idx as u64, std::ptr::addr_of_mut!(child));
+                zend_hash_index_update(&mut *ht, idx as u64, std::ptr::addr_of_mut!(child))
             } else {
                 let c_key = CString::new(key.as_str())
                     .map_err(|_| PhpException::default("Map key contains null byte".to_string()))?;
@@ -202,7 +215,13 @@ fn build_php_map(
                     c_key.as_ptr(),
                     key.len(),
                     std::ptr::addr_of_mut!(child),
-                );
+                )
+            };
+
+            if result.is_null() {
+                return Err(PhpException::default(
+                    "Failed to insert into PHP map".to_string(),
+                ));
             }
         }
         mem::forget(child);
