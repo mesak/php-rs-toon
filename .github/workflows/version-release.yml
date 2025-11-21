@@ -44,60 +44,7 @@ jobs:
             echo "new-tag=true" >> $GITHUB_OUTPUT
           fi
 
-  update-version-files:
-    needs: check-version
-    if: needs.check-version.outputs.new-tag == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Update VERSION_INFO.txt
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          sed -i "s/Version: .*/Version: $VERSION/" VERSION_INFO.txt
-          sed -i "s/Release Date: .*/Release Date: $(date -u '+%Y-%m-%d')/" VERSION_INFO.txt
-
-      - name: Update VERSION_QUICK_REFERENCE.txt
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          sed -i "s/  版本號: v.*/  版本號: v$VERSION/" VERSION_QUICK_REFERENCE.txt
-          sed -i "s/  發佈日期: .*/  發佈日期: $(date -u '+%Y-%m-%d')/" VERSION_QUICK_REFERENCE.txt
-
-      - name: Update VERSION_RECORD.md
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          sed -i "s/### Release v.*/### Release v$VERSION ($(date -u '+%Y-%m-%d'))/" VERSION_RECORD.md
-
-      - name: Update VERSION_MANIFEST.json
-        run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          python3 << 'EOF'
-          import json
-          from datetime import datetime
-          
-          with open('VERSION_MANIFEST.json', 'r', encoding='utf-8') as f:
-              data = json.load(f)
-          
-          if data['versions']:
-              data['versions'][0]['version'] = "${{ needs.check-version.outputs.version }}"
-              data['versions'][0]['compilationDate'] = datetime.now().strftime('%Y-%m-%d')
-              data['lastUpdated'] = datetime.now().isoformat() + 'Z'
-          
-          with open('VERSION_MANIFEST.json', 'w', encoding='utf-8') as f:
-              json.dump(data, f, indent=2, ensure_ascii=False)
-          EOF
-
-      - name: Commit version updates
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add VERSION_*.txt VERSION_*.md VERSION_*.json
-          git commit -m "chore: Update version files to ${{ needs.check-version.outputs.version }}" || true
-
-      - name: Push changes
-        run: |
-          git push origin main || true
 
   create-release:
     needs: check-version
@@ -136,11 +83,6 @@ jobs:
             - ✅ Production Ready
             - ✅ All 29 Tests Pass (100%)
             - ✅ Performance Optimized
-            
-            ## Documentation
-            - See [VERSION_RECORD.md](../../blob/main/VERSION_RECORD.md) for detailed information
-            - See [RELEASE_PERFORMANCE_REPORT.md](../../blob/main/RELEASE_PERFORMANCE_REPORT.md) for performance details
-            - See [VERSION_QUICK_REFERENCE.txt](../../blob/main/VERSION_QUICK_REFERENCE.txt) for quick reference
             
             ## What's New
             View the [git log](../../compare/$(git describe --tags --abbrev=0 HEAD^)...v${{ needs.check-version.outputs.version }}) for changes in this release.
