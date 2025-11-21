@@ -334,4 +334,4 @@ echo "Encoded in " . ($time * 1000) . "ms\n";
 
 ---
 
-**Navigation**: [← Installation](INSTALLATION.md) | [Index](INDEX.md) | [API Reference →](API_REFERENCE.md)
+**Navigation**: [← Installation](INSTALLATION.md) | [Main README](../README.md) | [API Reference →](API_REFERENCE.md)

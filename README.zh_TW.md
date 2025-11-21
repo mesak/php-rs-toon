@@ -9,64 +9,147 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange?style=flat-square)](https://www.rust-lang.org/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?style=flat-square)](https://www.php.net/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Language: English | 繁體中文](https://img.shields.io/badge/Language-English%20%7C%20%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-blue?style=flat-square)](#languages)
 
-一個超高效能的 PHP 擴展，用於編碼和解碼 [TOON (Token-Oriented Object Notation)](https://github.com/HelgeSverre/toon-php) 格式。採用 Rust 打造，擁有最佳的效能和安全性。
-
-[English](README.md) • [繁體中文](#繁體中文)
+超高效能 PHP 擴展，用於編碼和解碼 [TOON (Token-Oriented Object Notation)](https://github.com/HelgeSverre/toon-php) 格式。採用 Rust 打造，提供最佳性能和安全性。
 
 </div>
 
 ---
 
-## 繁體中文
+## ✨ 功能特色
 
-### ✨ 功能特色
+- **⚡ 極速性能** – Rust 驅動，無與倫比的速度
+- **🔄 雙向支援** – `toon_encode()` 和 `toon_decode()`
+- **🎯 智慧型別偵測** – 自動區分陣列與關聯式陣列
+- **📍 順序保留** – 保持插入順序
+- **🔐 型別安全** – 記憶體安全，零不安全程式碼
 
-- **⚡ 雷電般的速度** – 使用 Rust 精心打造，提供無與倫比的性能和安全性
-- **🔄 完整雙向支持** – `toon_encode()` 和 `toon_decode()` 實現無縫轉換
-- **🎯 智慧型類型偵測** – 自動區分序列陣列和關聯式陣列
-- **📍 順序保留** – 保持關聯式陣列的插入順序 (PHP 7.1+ 原生陣列行為)
-- **🔐 型態安全** – 記憶體安全，關鍵路徑中零不安全程式碼
+---
 
-### 📋 系統需求
+## 📦 安裝
 
-- **Rust** – 最新穩定版
-- **PHP** – 8.0 或更高版本
-- **php-config** – 包含在 `php-dev` 或 `php-devel` 套件中
-- **Clang** – 用於 `bindgen`
-
-### 🚀 快速開始
-
-#### 建置
+### 系統需求
 
 ```bash
-# 複製並進入目錄
-git clone <repository_url>
+# 安裝 Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# 安裝 PHP 開發標頭檔
+sudo apt install php8.2-dev clang  # Ubuntu/Debian
+# 或
+brew install php clang              # macOS
+```
+
+### 建置與安裝
+
+```bash
+# 複製專案
+git clone https://github.com/mesak/php-rs-toon.git
 cd php-rs-toon
 
-# 建置最佳化版本
+# 建置正式版本
 cargo build --release
+
+# 安裝擴展
+sudo cp target/release/libphp_rs_toon.so $(php-config --extension-dir)/
+
+# 啟用擴展
+echo "extension=libphp_rs_toon.so" | sudo tee -a $(php-config --ini-path)/20-toon.ini
+
+# 驗證安裝
+php -m | grep php_rs_toon
 ```
 
-輸出: `target/release/libphp_rs_toon.so` (Linux) 或 `target/release/libphp_rs_toon.dylib` (macOS)
+---
 
-#### 安裝
+## 🔧 開發
+
+### 開發建置
 
 ```bash
-# 找到 PHP 擴展目錄
-php-config --extension-dir
+# 除錯版本（編譯較快）
+cargo build
 
-# 複製已建置的擴展 (Linux 範例)
-cp target/release/libphp_rs_toon.so $(php-config --extension-dir)/
+# 正式版本（最佳化）
+cargo build --release
 
-# 在 php.ini 中啟用
-echo "extension=libphp_rs_toon.so" >> /etc/php/8.2/cli/php.ini
+# 格式化程式碼
+cargo fmt
+
+# 檢查程式碼品質
+cargo clippy --release
 ```
 
-### 💡 使用範例
+### Docker 建置
 
-#### 基本編碼
+```bash
+# 建置測試環境
+docker build -f Dockerfile.test -t php-rs-toon:test .
+
+# 建置正式版本
+docker build -f Dockerfile.prod -t php-rs-toon:prod .
+```
+
+---
+
+## 🧪 測試
+
+### 執行 Rust 單元測試
+
+```bash
+cargo test
+```
+
+### 執行 PHP 整合測試
+
+```bash
+# 使用已安裝的擴展
+php test.php
+
+# 使用建置的擴展（不需安裝）
+php -d extension=target/release/libphp_rs_toon.so test.php
+
+# Docker 測試
+docker build -f Dockerfile.test -t php-rs-toon:test .
+docker run --rm php-rs-toon:test
+```
+
+---
+
+## ⚡ 性能測試
+
+### 快速基準測試
+
+```bash
+# 單一性能測試
+php -d extension=target/release/libphp_rs_toon.so perf-test.php
+
+# 與純 PHP 實作比較
+php -d extension=target/release/libphp_rs_toon.so perf-compare.php
+```
+
+### 完整基準測試套件
+
+```bash
+cd benchmark
+composer install
+./run-benchmarks.sh
+
+# Docker 基準測試
+docker build -f Dockerfile.benchmark -t php-rs-toon:bench .
+docker run --rm php-rs-toon:bench
+```
+
+**性能結果**：
+- **快 10-30 倍** 相較於純 PHP 實作
+- **最佳化記憶體使用** 採用預分配策略
+- **遞迴深度保護** (最大深度: 100)
+
+---
+
+## 💡 使用範例
+
+### 基本編碼
 
 ```php
 <?php
@@ -82,11 +165,11 @@ $data = [
     ]
 ];
 
-$toonString = toon_encode($data);
-echo $toonString;
+$toon = toon_encode($data);
+echo $toon;
 ```
 
-**輸出:**
+**輸出：**
 ```
 user:
   id: 123
@@ -96,132 +179,156 @@ user:
     score: 9.5
 ```
 
-#### 基本解碼
+### 基本解碼
 
 ```php
 <?php
 
-$toonString = <<<'TOON'
+$toon = <<<'TOON'
 user:
   id: 123
-  email: ada@example.com
+  name: Alice
+  tags: 1, 2, 3
 TOON;
 
-$array = toon_decode($toonString);
-var_dump($array);
+$data = toon_decode($toon);
+print_r($data);
 ```
 
-### 🐳 Docker 驗證
-
-在隔離環境中測試擴展：
-
-```bash
-# 建置容器
-docker build -t php-rs-toon-test .
-
-# 執行測試
-docker run --rm -v $(pwd):/app php-rs-toon-test \
-  bash -c "cargo build --release && php -d extension=target/release/libphp_rs_toon.so test.php"
+**輸出：**
+```
+Array
+(
+    [user] => Array
+        (
+            [id] => 123
+            [name] => Alice
+            [tags] => Array
+                (
+                    [0] => 1
+                    [1] => 2
+                    [2] => 3
+                )
+        )
+)
 ```
 
-### 📚 專案結構
+### 巢狀結構
 
-```
-php-rs-toon/
-├── Cargo.toml              # Rust 套件清單
-├── Cargo.lock              # 可重現建置
-├── Dockerfile              # 乾淨的建置環境
-├── README.md               # 英文文檔
-├── README.zh_TW.md         # 繁體中文文檔 (此檔案)
-├── test.php                # 整合測試套件
-├── expanded.rs             # 生成的巨集展開
-└── src/
-    ├── lib.rs              # PHP FFI 綁定
-    └── toon.rs             # 解析器和編碼器
-```
+```php
+<?php
 
-### 🏗️ 架構概覽
+$data = [
+    "company" => [
+        "name" => "TechCorp",
+        "departments" => [
+            ["name" => "Engineering", "employees" => 50],
+            ["name" => "Sales", "employees" => 30],
+        ],
+        "metadata" => [
+            "founded" => 2020,
+            "public" => false
+        ]
+    ]
+];
 
-#### 核心元件
+$toon = toon_encode($data);
+$decoded = toon_decode($toon);
 
-**src/lib.rs** – PHP FFI 橋接
-- 匯出兩個函數: `toon_encode(Zval)` 和 `toon_decode(String)`
-- 處理 PHP 陣列 (Zval) 和內部 ToonValue 表示之間的型別轉換
-- 偵測邏輯: 序列整數鍵 → TOON 陣列；否則 → TOON 映射
-
-**src/toon.rs** – TOON 解析器和編碼器
-- 核心 `ToonValue` 列舉: Null, Bool, Int, Float, String, Array, Map
-- `parse()` 函數: 類 YAML 的縮排語法，處理帶逃脫的引用字符串
-- `encode()` 函數: 將 ToonValue 轉換為具有適當縮排的 TOON 格式
-
-#### 資料格式
-
-TOON 是一個類似 YAML 的縮排表示法：
-- 純量: `key: value` 或內聯 (用於基本型別)
-- 映射 (關聯式陣列): 鍵值對加縮排
-- 陣列 (序列): 逗號分隔內聯格式或作為清單項
-- 支援: null, 布林值, 整數, 浮點數, 帶逃脫的引用字符串
-
-### 🔧 開發指南
-
-#### 修改 TOON 解析邏輯
-
-1. 編輯 `src/toon.rs` 中的 `parse()` 函數
-2. 在 `toon.rs` 的 `#[cfg(test)]` 模組中新增對應的測試
-3. 執行 `cargo test` 驗證
-
-#### 新增 PHP 測試案例
-
-1. 編輯 `test.php` 並新增測試案例
-2. 執行: `php -d extension=target/release/libphp_rs_toon.so test.php`
-
-#### 測試模式
-
-- **Rust 單元測試**: 在 `toon.rs` 中使用 `#[test]`
-- **整合測試**: 將 PHP 測試案例新增到 `test.php`
-- 始終測試往返: 編碼 → 解碼 (或反之) 以確保一致性
-
-### 📝 常見開發任務
-
-#### 為生產環境建置
-
-```bash
-# 建置最佳化版本
-cargo build --release
-
-# 複製 .so/.dylib 到 PHP 擴展目錄
-cp target/release/libphp_rs_toon.so $(php-config --extension-dir)/
-
-# 在 php.ini 中新增
-extension=libphp_rs_toon.so
-
-# 驗證安裝
-php -m | grep php_rs_toon
+assert($data === $decoded); // 往返一致性
 ```
 
-#### 代碼品質檢查
+### 錯誤處理
 
-```bash
-cargo fmt                    # 程式碼格式化
-cargo clippy --release       # 檢查潛在問題
-cargo test                   # 執行所有測試
+```php
+<?php
+
+try {
+    $result = toon_decode("invalid: : syntax");
+} catch (Exception $e) {
+    echo "解析錯誤: " . $e->getMessage();
+}
 ```
 
-### 🤝 貢獻指南
+### 更多範例
 
-歡迎貢獻！請確保：
-
-- 代碼遵循 Rust 慣例 (`cargo fmt`, `cargo clippy`)
-- 測試通過 (`cargo test`)
-- PHP 整合測試正常運作
-
-### 📄 許可証
-
-MIT – 詳見 [LICENSE](LICENSE)
+參見 [`examples/`](examples/) 目錄：
+- [`basic-encode.php`](examples/basic-encode.php) - 簡單編碼
+- [`nested-structures.php`](examples/nested-structures.php) - 複雜巢狀資料
+- [`llm-optimization.php`](examples/llm-optimization.php) - LLM 友善格式
 
 ---
 
-## 語言
+## 📚 API 參考
 
-- **[English](README.md)** – 英文文檔
-- **繁體中文** – 此檔案
+### `toon_encode(mixed $data): string`
+
+將 PHP 資料編碼為 TOON 格式字串。
+
+**參數：**
+- `$data` - PHP 值（陣列、字串、整數、浮點數、布林值、null）
+
+**回傳：** TOON 格式字串
+
+**例外：** 超過遞迴深度限制 (>100) 時拋出例外
+
+---
+
+### `toon_decode(string $toon): mixed`
+
+將 TOON 字串解碼為 PHP 資料。
+
+**參數：**
+- `$toon` - TOON 格式字串
+
+**回傳：** PHP 值（陣列、字串、整數、浮點數、布林值、null）
+
+**例外：** 解析錯誤時拋出例外
+
+---
+
+## 🏗️ 專案結構
+
+```
+php-rs-toon/
+├── src/
+│   ├── lib.rs              # PHP FFI 橋接
+│   └── toon.rs             # TOON 解析器與編碼器
+├── examples/               # 使用範例
+├── benchmark/              # 性能基準測試
+├── test.php                # 整合測試
+├── perf-test.php           # 快速性能測試
+├── perf-compare.php        # Rust vs PHP 比較
+├── Cargo.toml              # Rust 依賴
+└── Dockerfile.*            # Docker 配置
+```
+
+---
+
+## 🤝 貢獻
+
+歡迎貢獻！請：
+
+1. Fork 專案
+2. 建立功能分支
+3. 進行變更並加入測試
+4. 執行 `cargo fmt && cargo clippy && cargo test`
+5. 提交 Pull Request
+
+---
+
+## 📄 授權
+
+MIT 授權 - 詳見 [LICENSE](LICENSE)
+
+---
+
+## 🔗 資源
+
+- [TOON 格式規範](https://github.com/HelgeSverre/toon-php)
+- [Rust ext-php-rs 文檔](https://docs.rs/ext-php-rs/)
+- [PHP 擴展開發](https://www.php.net/manual/zh/internals2.php)
+
+---
+
+**語言**: [English](README.md) | [繁體中文](#)

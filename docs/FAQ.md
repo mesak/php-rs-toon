@@ -266,4 +266,4 @@ Not ideal for:
 
 ---
 
-**Navigation**: [← Docker Guide](DOCKER_GUIDE.md) | [Index](INDEX.md) | [Troubleshooting →](TROUBLESHOOTING.md)
+**Navigation**: [← Docker Guide](DOCKER_GUIDE.md) | [Main README](../README.md) | [Troubleshooting →](TROUBLESHOOTING.md)

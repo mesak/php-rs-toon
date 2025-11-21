@@ -406,4 +406,4 @@ If you're still stuck:
 
 ---
 
-**Navigation**: [← FAQ](FAQ.md) | [Index](INDEX.md) | [Contributing →](CONTRIBUTING.md)
+**Navigation**: [← FAQ](FAQ.md) | [Main README](../README.md) | [Contributing →](CONTRIBUTING.md)

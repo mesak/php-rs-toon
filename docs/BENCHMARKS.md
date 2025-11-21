@@ -188,4 +188,4 @@ To submit your benchmark results:
 
 ---
 
-**Navigation**: [← API Reference](API_REFERENCE.md) | [Index](INDEX.md) | [Building →](BUILDING.md)
+**Navigation**: [← API Reference](API_REFERENCE.md) | [Main README](../README.md) | [Building →](BUILDING.md)

@@ -341,4 +341,4 @@ RUN chown -R www-data:www-data /var/www/html
 
 ---
 
-**Navigation**: [← Building](BUILDING.md) | [Index](INDEX.md) | [FAQ →](FAQ.md)
+**Navigation**: [← Building](BUILDING.md) | [Main README](../README.md) | [FAQ →](FAQ.md)

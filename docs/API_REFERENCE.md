@@ -374,4 +374,4 @@ Based on benchmarks (see [BENCHMARKS.md](BENCHMARKS.md)):
 
 ---
 
-**Navigation**: [← Usage](USAGE.md) | [Index](INDEX.md) | [Benchmarks →](BENCHMARKS.md)
+**Navigation**: [← Usage](USAGE.md) | [Main README](../README.md) | [Benchmarks →](BENCHMARKS.md)

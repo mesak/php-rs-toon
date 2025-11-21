@@ -190,4 +190,4 @@ $(brew --prefix)/lib/php/pecl/20220829/
 
 ---
 
-**Navigation**: [← Index](INDEX.md) | [USAGE.md →](USAGE.md)
+**Navigation**: [← Main README](../README.md) | [USAGE.md →](USAGE.md)

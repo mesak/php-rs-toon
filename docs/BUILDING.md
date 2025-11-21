@@ -307,4 +307,4 @@ composer install
 
 ---
 
-**Navigation**: [← Benchmarks](BENCHMARKS.md) | [Index](INDEX.md) | [Docker Guide →](DOCKER_GUIDE.md)
+**Navigation**: [← Benchmarks](BENCHMARKS.md) | [Main README](../README.md) | [Docker Guide →](DOCKER_GUIDE.md)
