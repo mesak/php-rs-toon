@@ -17,7 +17,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 
 # Copy all files including the pre-co# Download and install php-rs-toon extension from GitHub release
-ARG TOON_VERSION=1.0.0
+ARG TOON_VERSION=1.0.2
 RUN mkdir -p /tmp/extension && \
     cd /tmp/extension && \
     curl -L https://github.com/mesak/php-rs-toon/releases/download/v${TOON_VERSION}/php-rs-toon-linux-x86_64.zip \
