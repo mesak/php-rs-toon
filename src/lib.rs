@@ -1,4 +1,4 @@
-use std::ffi::CString;
+
 use std::mem;
 
 use ext_php_rs::boxed::ZBox;
@@ -208,11 +208,9 @@ fn build_php_map(
                 #[allow(clippy::cast_sign_loss)]
                 zend_hash_index_update(&mut *ht, idx as u64, std::ptr::addr_of_mut!(child))
             } else {
-                let c_key = CString::new(key.as_str())
-                    .map_err(|_| PhpException::default("Map key contains null byte".to_string()))?;
                 zend_hash_str_update(
                     &mut *ht,
-                    c_key.as_ptr(),
+                    key.as_ptr() as *const i8,
                     key.len(),
                     std::ptr::addr_of_mut!(child),
                 )
