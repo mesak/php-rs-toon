@@ -31,6 +31,15 @@ pub fn parse(input: &str) -> anyhow::Result<ToonValue> {
 }
 
 fn parse_lines(lines: &[&str], start_idx: usize, base_indent: usize) -> anyhow::Result<(ToonValue, usize)> {
+    parse_lines_impl(lines, start_idx, base_indent, 0)
+}
+
+fn parse_lines_impl(lines: &[&str], start_idx: usize, base_indent: usize, depth: usize) -> anyhow::Result<(ToonValue, usize)> {
+    const MAX_PARSE_DEPTH: usize = 100;
+    if depth > MAX_PARSE_DEPTH {
+        return Err(anyhow::anyhow!("Parse depth limit exceeded"));
+    }
+    
     let mut map = Vec::new();
     let mut i = start_idx;
 
@@ -63,7 +72,7 @@ fn parse_lines(lines: &[&str], start_idx: usize, base_indent: usize) -> anyhow::
                         let next_indent = next_line.len() - next_line.trim_start().len();
                         
                         if next_indent > indent {
-                            let (nested_val, consumed) = parse_lines(lines, i + 1, next_indent)?;
+                            let (nested_val, consumed) = parse_lines_impl(lines, i + 1, next_indent, depth + 1)?;
                             map.push((key, nested_val));
                             i = consumed;
                             continue;
@@ -122,7 +131,10 @@ fn parse_value(s: &str) -> ToonValue {
         // Recursively parse items?
         // If we have "1, 2, 3", we want [Int(1), Int(2), Int(3)]
         // If we have "a, b, c", we want [String("a"), String("b"), String("c")]
-        let items: Vec<ToonValue> = parts.iter().map(|&p| parse_value(p)).collect();
+        let mut items: Vec<ToonValue> = Vec::with_capacity(parts.len());
+        for &p in parts.iter() {
+            items.push(parse_value(p));
+        }
         return ToonValue::Array(items);
     }
     
@@ -133,11 +145,21 @@ fn parse_value(s: &str) -> ToonValue {
 
 pub fn encode(val: &ToonValue) -> String {
     let mut out = String::new();
-    encode_recursive(val, 0, &mut out);
+    encode_recursive_impl(val, 0, &mut out, 0);
     out.trim_end().to_string()
 }
 
 fn encode_recursive(val: &ToonValue, indent: usize, out: &mut String) {
+    encode_recursive_impl(val, indent, out, 0);
+}
+
+fn encode_recursive_impl(val: &ToonValue, indent: usize, out: &mut String, depth: usize) {
+    const MAX_ENCODE_DEPTH: usize = 100;
+    if depth > MAX_ENCODE_DEPTH {
+        out.push_str("[MaxDepthExceeded]");
+        return;
+    }
+    
     let prefix = " ".repeat(indent);
 
     match val {
@@ -149,11 +171,11 @@ fn encode_recursive(val: &ToonValue, indent: usize, out: &mut String) {
                 match value {
                     ToonValue::Map(_) => {
                         out.push_str(":\n");
-                        encode_recursive(value, indent + 2, out);
+                        encode_recursive_impl(value, indent + 2, out, depth + 1);
                     }
                     _ => {
                         out.push_str(": ");
-                        encode_recursive(value, 0, out); // 0 indent because it's inline
+                        encode_recursive_impl(value, 0, out, depth + 1); // 0 indent because it's inline
                     }
                 }
             }
@@ -187,12 +209,20 @@ fn value_to_string(val: &ToonValue) -> String {
                 let escaped = s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
                 format!("\"{}\"", escaped)
             } else {
-                s.clone()
+                s.as_str().to_string()
             }
         },
         ToonValue::Array(items) => {
-            let s = items.iter().map(|v| value_to_string(v)).collect::<Vec<_>>().join(", ");
-            format!("[{}]", s)
+            let mut result = String::with_capacity(items.len() * 10);
+            result.push('[');
+            for (i, v) in items.iter().enumerate() {
+                if i > 0 {
+                    result.push_str(", ");
+                }
+                result.push_str(&value_to_string(v));
+            }
+            result.push(']');
+            result
         }
         ToonValue::Map(_) => "[Object]".to_string(),
     }

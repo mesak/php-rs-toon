@@ -30,7 +30,17 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
 
 // --- Helpers ---
 
+const MAX_RECURSION_DEPTH: usize = 100;
+
 fn toon_value_to_zval(val: ToonValue) -> PhpResult<Zval> {
+    toon_value_to_zval_impl(val, 0)
+}
+
+fn toon_value_to_zval_impl(val: ToonValue, depth: usize) -> PhpResult<Zval> {
+    if depth > MAX_RECURSION_DEPTH {
+        return Err(PhpException::default("Recursion depth limit exceeded".to_string()));
+    }
+    
     let mut zval = Zval::new();
     match val {
         ToonValue::Null => zval.set_null(),
@@ -39,16 +49,16 @@ fn toon_value_to_zval(val: ToonValue) -> PhpResult<Zval> {
         ToonValue::Float(f) => zval.set_double(f),
         ToonValue::String(s) => zval.set_string(&s, false)?,
         ToonValue::Array(arr) => {
-            let mut vec = Vec::new();
+            let mut vec = Vec::with_capacity(arr.len());
             for item in arr {
-                vec.push(toon_value_to_zval(item)?);
+                vec.push(toon_value_to_zval_impl(item, depth + 1)?);
             }
             zval.set_array(vec).map_err(|e| PhpException::default(e.to_string()))?;
         }
         ToonValue::Map(map) => {
-            let mut entries = Vec::new();
+            let mut entries = Vec::with_capacity(map.len());
             for (k, v) in map {
-                entries.push((k, toon_value_to_zval(v)?));
+                entries.push((k, toon_value_to_zval_impl(v, depth + 1)?));
             }
             zval.set_array(entries).map_err(|e| PhpException::default(e.to_string()))?;
         }
@@ -57,6 +67,14 @@ fn toon_value_to_zval(val: ToonValue) -> PhpResult<Zval> {
 }
 
 fn zval_to_toon_value(zval: &Zval) -> PhpResult<ToonValue> {
+    zval_to_toon_value_impl(zval, 0)
+}
+
+fn zval_to_toon_value_impl(zval: &Zval, depth: usize) -> PhpResult<ToonValue> {
+    if depth > MAX_RECURSION_DEPTH {
+        return Err(PhpException::default("Recursion depth limit exceeded".to_string()));
+    }
+    
     if zval.is_null() {
         return Ok(ToonValue::Null);
     }
@@ -77,6 +95,7 @@ fn zval_to_toon_value(zval: &Zval) -> PhpResult<ToonValue> {
     }
     if zval.is_array() {
         let ht = zval.array().unwrap();
+        let len = ht.len();
         
         // Check if it's a sequential array (list) or associative (map)
         // PHP arrays are always ordered maps, but TOON distinguishes between lists and maps.
@@ -85,36 +104,40 @@ fn zval_to_toon_value(zval: &Zval) -> PhpResult<ToonValue> {
         
         let mut is_list = true;
         let mut expected_idx = 0;
-        let mut entries = Vec::new();
+        let mut entries = Vec::with_capacity(len);
         let mut has_complex = false;
         
         // Single pass: check list conditions and complex types simultaneously
+        // Optimized: single pattern match for key checking and conversion
         for (k, v) in ht.iter() {
-            let val = zval_to_toon_value(v)?;
+            let val = zval_to_toon_value_impl(v, depth + 1)?;
             
             // Check if value is complex (Map or Array) during iteration
             if !has_complex && matches!(val, ToonValue::Map(_) | ToonValue::Array(_)) {
                 has_complex = true;
             }
             
-            // Check if array is sequential
-            if is_list {
-                if let ArrayKey::Long(idx) = k {
-                    if idx != expected_idx as i64 {
-                        is_list = false;
-                    } else {
-                        expected_idx += 1;
-                    }
-                } else {
-                    is_list = false;
-                }
-            }
-            
-            // Collect all entries (unified collection)
+            // Single pattern match combines list check and key conversion
             let key_str = match k {
-                ArrayKey::Long(i) => i.to_string(),
-                ArrayKey::String(s) => s.to_string(),
-                ArrayKey::Str(s) => s.to_string(),
+                ArrayKey::Long(idx) => {
+                    // Check if array is sequential during key extraction
+                    if is_list {
+                        if idx != expected_idx as i64 {
+                            is_list = false;
+                        } else {
+                            expected_idx += 1;
+                        }
+                    }
+                    idx.to_string()
+                }
+                ArrayKey::String(s) => {
+                    is_list = false;
+                    s
+                }
+                ArrayKey::Str(s) => {
+                    is_list = false;
+                    s
+                }
             };
             entries.push((key_str, val));
         }
