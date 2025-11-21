@@ -1,3 +1,4 @@
 /target
+/vendor
 /benchmark/vendor
 /benchmark/composer.lock

@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToonValue {
     Null,
@@ -23,29 +21,38 @@ pub fn parse(input: &str) -> anyhow::Result<ToonValue> {
     if lines.len() == 1 {
         let line = lines[0].trim();
         if !line.contains(':') && !line.is_empty() {
-             return Ok(parse_value(line));
+            return Ok(parse_value(line));
         }
     }
 
     parse_lines(&lines, 0, 0).map(|(val, _)| val)
 }
 
-fn parse_lines(lines: &[&str], start_idx: usize, base_indent: usize) -> anyhow::Result<(ToonValue, usize)> {
+fn parse_lines(
+    lines: &[&str],
+    start_idx: usize,
+    base_indent: usize,
+) -> anyhow::Result<(ToonValue, usize)> {
     parse_lines_impl(lines, start_idx, base_indent, 0)
 }
 
-fn parse_lines_impl(lines: &[&str], start_idx: usize, base_indent: usize, depth: usize) -> anyhow::Result<(ToonValue, usize)> {
+fn parse_lines_impl(
+    lines: &[&str],
+    start_idx: usize,
+    base_indent: usize,
+    depth: usize,
+) -> anyhow::Result<(ToonValue, usize)> {
     const MAX_PARSE_DEPTH: usize = 100;
     if depth > MAX_PARSE_DEPTH {
         return Err(anyhow::anyhow!("Parse depth limit exceeded"));
     }
-    
+
     let mut map = Vec::new();
     let mut i = start_idx;
 
     while i < lines.len() {
         let line = lines[i];
-        
+
         // Skip empty lines
         if line.trim().is_empty() {
             i += 1;
@@ -67,12 +74,13 @@ fn parse_lines_impl(lines: &[&str], start_idx: usize, base_indent: usize, depth:
                 // Nested object or empty
                 // Check next line to see if it's a child
                 if i + 1 < lines.len() {
-                    let next_line = lines[i+1];
+                    let next_line = lines[i + 1];
                     if !next_line.trim().is_empty() {
                         let next_indent = next_line.len() - next_line.trim_start().len();
-                        
+
                         if next_indent > indent {
-                            let (nested_val, consumed) = parse_lines_impl(lines, i + 1, next_indent, depth + 1)?;
+                            let (nested_val, consumed) =
+                                parse_lines_impl(lines, i + 1, next_indent, depth + 1)?;
                             map.push((key, nested_val));
                             i = consumed;
                             continue;
@@ -86,7 +94,7 @@ fn parse_lines_impl(lines: &[&str], start_idx: usize, base_indent: usize, depth:
                 map.push((key, parse_value(val_str)));
             }
         } else {
-            // Line without colon? 
+            // Line without colon?
             // Could be a continuation or error. For now, ignore or treat as string key with null?
             // Spec says "Key-value pairs with colons".
         }
@@ -113,13 +121,16 @@ fn parse_value(s: &str) -> ToonValue {
     if let Ok(f) = s.parse::<f64>() {
         return ToonValue::Float(f);
     }
-    
+
     // Handle quoted strings
     if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
         // Simple unescape: replace \" with " and \\ with \
         // For a full implementation, use a proper unescape function
-        let inner = &s[1..s.len()-1];
-        let unescaped = inner.replace("\\\"", "\"").replace("\\n", "\n").replace("\\\\", "\\");
+        let inner = &s[1..s.len() - 1];
+        let unescaped = inner
+            .replace("\\\"", "\"")
+            .replace("\\n", "\n")
+            .replace("\\\\", "\\");
         return ToonValue::String(unescaped);
     }
 
@@ -137,7 +148,7 @@ fn parse_value(s: &str) -> ToonValue {
         }
         return ToonValue::Array(items);
     }
-    
+
     ToonValue::String(s.to_string())
 }
 
@@ -159,7 +170,7 @@ fn encode_recursive_impl(val: &ToonValue, indent: usize, out: &mut String, depth
         out.push_str("[MaxDepthExceeded]");
         return;
     }
-    
+
     let prefix = " ".repeat(indent);
 
     match val {
@@ -181,7 +192,11 @@ fn encode_recursive_impl(val: &ToonValue, indent: usize, out: &mut String, depth
             }
         }
         ToonValue::Array(items) => {
-            let s = items.iter().map(|v| value_to_string(v)).collect::<Vec<_>>().join(", ");
+            let s = items
+                .iter()
+                .map(|v| value_to_string(v))
+                .collect::<Vec<_>>()
+                .join(", ");
             out.push_str(&s);
             out.push('\n');
         }
@@ -204,14 +219,22 @@ fn value_to_string(val: &ToonValue) -> String {
                 return "\"\"".to_string();
             }
             // Quote if contains special chars
-            if s.contains('\n') || s.contains(':') || s.contains(',') || s.contains('"') || s.trim() != s {
+            if s.contains('\n')
+                || s.contains(':')
+                || s.contains(',')
+                || s.contains('"')
+                || s.trim() != s
+            {
                 // Simple escape
-                let escaped = s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
+                let escaped = s
+                    .replace('\\', "\\\\")
+                    .replace('"', "\\\"")
+                    .replace('\n', "\\n");
                 format!("\"{}\"", escaped)
             } else {
                 s.as_str().to_string()
             }
-        },
+        }
         ToonValue::Array(items) => {
             let mut result = String::with_capacity(items.len() * 10);
             result.push('[');
@@ -369,7 +392,10 @@ mod tests {
     fn test_encode_simple() {
         let mut user_map = Vec::new();
         user_map.push(("id".to_string(), ToonValue::Int(123)));
-        user_map.push(("email".to_string(), ToonValue::String("ada@example.com".to_string())));
+        user_map.push((
+            "email".to_string(),
+            ToonValue::String("ada@example.com".to_string()),
+        ));
 
         let mut root_map = Vec::new();
         root_map.push(("user".to_string(), ToonValue::Map(user_map)));
@@ -412,11 +438,7 @@ mod tests {
 
     #[test]
     fn test_encode_arrays() {
-        let items = vec![
-            ToonValue::Int(1),
-            ToonValue::Int(2),
-            ToonValue::Int(3),
-        ];
+        let items = vec![ToonValue::Int(1), ToonValue::Int(2), ToonValue::Int(3)];
         let val = ToonValue::Array(items);
         let encoded = encode(&val);
         assert!(encoded.contains("1, 2, 3"));
@@ -462,11 +484,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_arrays() {
-        let items = vec![
-            ToonValue::Int(1),
-            ToonValue::Int(2),
-            ToonValue::Int(3),
-        ];
+        let items = vec![ToonValue::Int(1), ToonValue::Int(2), ToonValue::Int(3)];
         let val = ToonValue::Array(items.clone());
         let encoded = encode(&val);
         let decoded = parse(&encoded).unwrap();
@@ -496,10 +514,7 @@ mod tests {
 
     #[test]
     fn test_special_characters_in_string() {
-        let test_strings = vec![
-            "!@#$%^&*()",
-            "path/to/file",
-        ];
+        let test_strings = vec!["!@#$%^&*()", "path/to/file"];
 
         for test_str in test_strings {
             let val = ToonValue::String(test_str.to_string());
@@ -516,12 +531,7 @@ mod tests {
 
     #[test]
     fn test_unicode_characters() {
-        let unicode_strings = vec![
-            "Hello 🌍",
-            "你好世界",
-            "مرحبا بالعالم",
-            "Привет мир",
-        ];
+        let unicode_strings = vec!["Hello 🌍", "你好世界", "مرحبا بالعالم", "Привет мир"];
 
         for test_str in unicode_strings {
             let val = ToonValue::String(test_str.to_string());

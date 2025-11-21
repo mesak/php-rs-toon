@@ -93,6 +93,14 @@ class ToonTestRunner {
     }
 }
 
+function build_deep_nested_array(int $depth): array {
+    $value = "leaf";
+    for ($level = $depth; $level >= 1; $level--) {
+        $value = ["level_$level" => $value];
+    }
+    return ["root" => $value];
+}
+
 $tester = new ToonTestRunner();
 
 echo "╔════════════════════════════════════════════════════════════════╗\n";
@@ -400,6 +408,29 @@ $tester->test_encode_decode("Nested Structure",
         ]
     ]
 );
+
+// ============================================================================
+// SECTION 8: DEEP RECURSION SAFETY
+// ============================================================================
+echo "═══════════════════════════════════════════════════════════════════\n";
+echo "SECTION 8: DEEP RECURSION SAFETY\n";
+echo "═══════════════════════════════════════════════════════════════════\n\n";
+
+$deepSafe = build_deep_nested_array(50);
+$tester->test_round_trip("Deep Nesting (50 Levels)", $deepSafe);
+
+echo "--- Testing: Deep Nesting Overflow (60 Levels) ---\n";
+$tester->totalTests++;
+try {
+    $tooDeep = build_deep_nested_array(60);
+    toon_encode($tooDeep);
+    echo "❌ FAIL - Expected recursion depth exception not thrown\n";
+    $tester->failedTests++;
+} catch (Exception $e) {
+    echo "✅ PASS - Caught expected exception: " . $e->getMessage() . "\n";
+    $tester->passedTests++;
+}
+echo "\n";
 
 // 7.4 Quoted Strings in TOON
 $tester->test_encode_decode("Quoted Strings",

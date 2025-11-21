@@ -143,7 +143,7 @@ docker run --rm php-rs-toon:bench
 **Performance Results**:
 - **10-30x faster** than pure PHP implementation
 - **Optimized memory usage** with pre-allocation
-- **Recursion depth protection** (max depth: 100)
+- **Recursion depth protection** (max depth: 60)
 
 ---
 

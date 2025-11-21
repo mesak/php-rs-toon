@@ -1,6 +1,11 @@
-use ext_php_rs::prelude::*;
-use ext_php_rs::types::{Zval, ArrayKey};
+use std::ffi::CString;
+use std::mem;
+
+use ext_php_rs::boxed::ZBox;
+use ext_php_rs::ffi::{zend_hash_index_update, zend_hash_next_index_insert, zend_hash_str_update};
 use ext_php_rs::internal::function::PhpFunction;
+use ext_php_rs::prelude::*;
+use ext_php_rs::types::{ArrayKey, ZendHashTable, Zval};
 
 pub mod toon;
 use toon::ToonValue;
@@ -30,7 +35,7 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
 
 // --- Helpers ---
 
-const MAX_RECURSION_DEPTH: usize = 100;
+const MAX_RECURSION_DEPTH: usize = 60;
 
 fn toon_value_to_zval(val: ToonValue) -> PhpResult<Zval> {
     toon_value_to_zval_impl(val, 0)
@@ -38,9 +43,11 @@ fn toon_value_to_zval(val: ToonValue) -> PhpResult<Zval> {
 
 fn toon_value_to_zval_impl(val: ToonValue, depth: usize) -> PhpResult<Zval> {
     if depth > MAX_RECURSION_DEPTH {
-        return Err(PhpException::default("Recursion depth limit exceeded".to_string()));
+        return Err(PhpException::default(
+            "Recursion depth limit exceeded".to_string(),
+        ));
     }
-    
+
     let mut zval = Zval::new();
     match val {
         ToonValue::Null => zval.set_null(),
@@ -49,18 +56,12 @@ fn toon_value_to_zval_impl(val: ToonValue, depth: usize) -> PhpResult<Zval> {
         ToonValue::Float(f) => zval.set_double(f),
         ToonValue::String(s) => zval.set_string(&s, false)?,
         ToonValue::Array(arr) => {
-            let mut vec = Vec::with_capacity(arr.len());
-            for item in arr {
-                vec.push(toon_value_to_zval_impl(item, depth + 1)?);
-            }
-            zval.set_array(vec).map_err(|e| PhpException::default(e.to_string()))?;
+            let ht = build_php_list(arr, depth + 1)?;
+            zval.set_hashtable(ht);
         }
         ToonValue::Map(map) => {
-            let mut entries = Vec::with_capacity(map.len());
-            for (k, v) in map {
-                entries.push((k, toon_value_to_zval_impl(v, depth + 1)?));
-            }
-            zval.set_array(entries).map_err(|e| PhpException::default(e.to_string()))?;
+            let ht = build_php_map(map, depth + 1)?;
+            zval.set_hashtable(ht);
         }
     }
     Ok(zval)
@@ -72,9 +73,11 @@ fn zval_to_toon_value(zval: &Zval) -> PhpResult<ToonValue> {
 
 fn zval_to_toon_value_impl(zval: &Zval, depth: usize) -> PhpResult<ToonValue> {
     if depth > MAX_RECURSION_DEPTH {
-        return Err(PhpException::default("Recursion depth limit exceeded".to_string()));
+        return Err(PhpException::default(
+            "Recursion depth limit exceeded".to_string(),
+        ));
     }
-    
+
     if zval.is_null() {
         return Ok(ToonValue::Null);
     }
@@ -96,65 +99,121 @@ fn zval_to_toon_value_impl(zval: &Zval, depth: usize) -> PhpResult<ToonValue> {
     if zval.is_array() {
         let ht = zval.array().unwrap();
         let len = ht.len();
-        
-        // Check if it's a sequential array (list) or associative (map)
-        // PHP arrays are always ordered maps, but TOON distinguishes between lists and maps.
-        // Heuristic: if all keys are sequential integers starting from 0, treat as Array.
-        // Otherwise treat as Map.
-        
-        let mut is_list = true;
-        let mut expected_idx = 0;
-        let mut entries = Vec::with_capacity(len);
+
+        // Detect list candidacy and defer allocating map storage until required
+        let mut expected_idx = 0usize;
+        let mut is_list_candidate = true;
         let mut has_complex = false;
-        
-        // Single pass: check list conditions and complex types simultaneously
-        // Optimized: single pattern match for key checking and conversion
+        let mut list_items: Vec<ToonValue> = Vec::with_capacity(len);
+        let mut map_entries: Option<Vec<(String, ToonValue)>> = None;
+
         for (k, v) in ht.iter() {
-            let val = zval_to_toon_value_impl(v, depth + 1)?;
-            
-            // Check if value is complex (Map or Array) during iteration
-            if !has_complex && matches!(val, ToonValue::Map(_) | ToonValue::Array(_)) {
-                has_complex = true;
-            }
-            
-            // Single pattern match combines list check and key conversion
-            let key_str = match k {
-                ArrayKey::Long(idx) => {
-                    // Check if array is sequential during key extraction
-                    if is_list {
-                        if idx != expected_idx as i64 {
-                            is_list = false;
-                        } else {
-                            expected_idx += 1;
-                        }
+            let mut treat_as_list_entry = is_list_candidate;
+
+            if treat_as_list_entry {
+                match k {
+                    ArrayKey::Long(idx) if idx == expected_idx as i64 => {
+                        expected_idx += 1;
                     }
-                    idx.to_string()
+                    _ => {
+                        treat_as_list_entry = false;
+                        is_list_candidate = false;
+                    }
                 }
-                ArrayKey::String(s) => {
-                    is_list = false;
-                    s
+            }
+
+            let val = zval_to_toon_value_impl(v, depth + 1)?;
+            let value_is_complex = matches!(val, ToonValue::Map(_) | ToonValue::Array(_));
+            if value_is_complex {
+                has_complex = true;
+                if treat_as_list_entry {
+                    treat_as_list_entry = false;
+                    is_list_candidate = false;
                 }
-                ArrayKey::Str(s) => {
-                    is_list = false;
-                    s
+            }
+
+            if treat_as_list_entry {
+                list_items.push(val);
+                continue;
+            }
+
+            let entries = map_entries.get_or_insert_with(|| {
+                let mut vec = Vec::with_capacity(len);
+                for (idx, prev_val) in list_items.drain(..).enumerate() {
+                    vec.push((idx.to_string(), prev_val));
                 }
+                vec
+            });
+
+            let key_str = match k {
+                ArrayKey::Long(idx) => idx.to_string(),
+                ArrayKey::String(s) => s,
+                ArrayKey::Str(s) => s.to_string(),
             };
             entries.push((key_str, val));
         }
-        
-        // Decision: return Array or Map
-        if is_list && !entries.is_empty() && !has_complex {
-            // Extract values without cloning (move ownership)
-            let items = entries.into_iter().map(|(_, v)| v).collect();
-            return Ok(ToonValue::Array(items));
-        } else if entries.is_empty() {
-            // Empty PHP array defaults to empty list
-            return Ok(ToonValue::Array(Vec::new()));
+
+        if is_list_candidate && !has_complex {
+            return Ok(ToonValue::Array(list_items));
         }
-        
-        return Ok(ToonValue::Map(entries));
+
+        if let Some(entries) = map_entries {
+            return Ok(ToonValue::Map(entries));
+        }
+
+        // Empty PHP arrays default to empty lists
+        return Ok(ToonValue::Array(Vec::new()));
     }
-    
+
     // Fallback
     Ok(ToonValue::String(zval.string().unwrap_or_default()))
+}
+
+fn build_php_list(items: Vec<ToonValue>, depth: usize) -> PhpResult<ZBox<ZendHashTable>> {
+    let mut ht = ZendHashTable::with_capacity(clamped_capacity(items.len()));
+    for item in items {
+        let mut child = toon_value_to_zval_impl(item, depth)?;
+        unsafe {
+            zend_hash_next_index_insert(&mut *ht, std::ptr::addr_of_mut!(child));
+        }
+        mem::forget(child);
+    }
+    Ok(ht)
+}
+
+fn build_php_map(
+    entries: Vec<(String, ToonValue)>,
+    depth: usize,
+) -> PhpResult<ZBox<ZendHashTable>> {
+    let mut ht = ZendHashTable::with_capacity(clamped_capacity(entries.len()));
+    for (key, value) in entries {
+        let mut child = toon_value_to_zval_impl(value, depth)?;
+        let maybe_index = key.parse::<i64>().ok();
+        unsafe {
+            if let Some(idx) = maybe_index {
+                #[allow(clippy::cast_sign_loss)]
+                zend_hash_index_update(&mut *ht, idx as u64, std::ptr::addr_of_mut!(child));
+            } else {
+                let c_key = CString::new(key.as_str())
+                    .map_err(|_| PhpException::default("Map key contains null byte".to_string()))?;
+                zend_hash_str_update(
+                    &mut *ht,
+                    c_key.as_ptr(),
+                    key.len(),
+                    std::ptr::addr_of_mut!(child),
+                );
+            }
+        }
+        mem::forget(child);
+    }
+    Ok(ht)
+}
+
+fn clamped_capacity(len: usize) -> u32 {
+    let max = u32::MAX as usize;
+    if len > max {
+        u32::MAX
+    } else {
+        len as u32
+    }
 }
