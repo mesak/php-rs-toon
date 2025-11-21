@@ -1,0 +1,30 @@
+FROM php:8.2-cli
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    libssl-dev \
+    pkg-config \
+    clang \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Build the extension (Release mode for optimization)
+RUN cargo build --release
+
+# Configure PHP to load the extension
+# Note: The library name might be libphp_rs_toon.so
+RUN echo "extension=/app/target/release/libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini
+
+# Run the tests
+CMD ["php", "test.php"]
