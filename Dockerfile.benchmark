@@ -16,13 +16,16 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /app
 
-# Copy all files including the pre-compiled extension
-COPY . /app/
-
-# Copy the locally compiled extension
-RUN cp /app/libphp_rs_toon.so $(php-config --extension-dir)/ && \
-    echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini
-
+# Copy all files including the pre-co# Download and install php-rs-toon extension from GitHub release
+ARG TOON_VERSION=1.0.0
+RUN mkdir -p /tmp/extension && \
+    cd /tmp/extension && \
+    curl -L https://github.com/mesak/php-rs-toon/releases/download/v${TOON_VERSION}/php-rs-toon-linux-x86_64.zip \
+    -o extension.zip && \
+    unzip extension.zip && \
+    mv libphp_rs_toon.so $(php-config --extension-dir)/ && \
+    echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini && \
+    cd / && rm -rf /tmp/extension
 # Verify extension is loaded
 RUN php -m | grep php-rs-toon || (echo "Extension not loaded!" && exit 1)
 

@@ -126,7 +126,7 @@ php -d extension=target/release/libphp_rs_toon.so test.php
 
 ```bash
 docker build -t php-rs-toon-test .
-docker run --rm -v /path/to/repo:/app php-rs-toon-test bash -c "cargo test --release && php -d extension=target/release/libphp_rs_toon.so test.php"
+docker run --rm -v ./:/app php-rs-toon-test bash -c "cargo test --release && php -d extension=target/release/libphp_rs_toon.so test.php"
 ```
 
 ## 測試覆蓋的主要場景

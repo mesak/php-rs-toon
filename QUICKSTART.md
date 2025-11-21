@@ -49,10 +49,11 @@ cat benchmark/results.md
 
 ```bash
 # Download from GitHub release
-curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
-  -o libphp_rs_toon.so
+curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/php-rs-toon-linux-x86_64.zip \
+  -o extension.zip
 
-# Copy to PHP extension directory
+# Unzip and install
+unzip extension.zip
 sudo cp libphp_rs_toon.so $(php-config --extension-dir)/
 
 # Enable in php.ini
