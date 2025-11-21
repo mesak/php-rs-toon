@@ -134,22 +134,105 @@ fn parse_value(s: &str) -> ToonValue {
         return ToonValue::String(unescaped);
     }
 
-    // Handle lists: comma separated values
-    // Only if it doesn't look like a string with commas (heuristics are hard)
-    // For now, if it contains ',' and is not quoted, split it.
-    if s.contains(',') {
-        let parts: Vec<&str> = s.split(',').map(|p| p.trim()).collect();
-        // Recursively parse items?
-        // If we have "1, 2, 3", we want [Int(1), Int(2), Int(3)]
-        // If we have "a, b, c", we want [String("a"), String("b"), String("c")]
-        let mut items: Vec<ToonValue> = Vec::with_capacity(parts.len());
-        for &p in parts.iter() {
-            items.push(parse_value(p));
+    // Check for wrapped list [...]
+    if s.starts_with('[') && s.ends_with(']') {
+        // Check if it's a single enclosing pair
+        let mut depth = 0;
+        let mut enclosed = true;
+        for (i, c) in s.chars().enumerate() {
+            match c {
+                '[' => depth += 1,
+                ']' => {
+                    depth -= 1;
+                    if depth == 0 && i < s.len() - 1 {
+                        enclosed = false;
+                        break;
+                    }
+                }
+                _ => {}
+            }
         }
-        return ToonValue::Array(items);
+        if enclosed {
+            let inner = &s[1..s.len() - 1];
+            return parse_list_content(inner);
+        }
+    }
+
+    // Handle lists: comma separated values
+    if s.contains(',') {
+        return parse_list_content(s);
     }
 
     ToonValue::String(s.to_string())
+}
+
+fn parse_list_content(s: &str) -> ToonValue {
+    let parts = split_smart(s);
+    let mut items = Vec::with_capacity(parts.len());
+    for p in parts {
+        items.push(parse_value(&p));
+    }
+    ToonValue::Array(items)
+}
+
+fn split_smart(s: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    let mut in_quote = false;
+    let mut escape = false;
+
+    for c in s.chars() {
+        if escape {
+            current.push(c);
+            escape = false;
+            continue;
+        }
+        if c == '\\' {
+            current.push(c);
+            escape = true;
+            continue;
+        }
+
+        if in_quote {
+            current.push(c);
+            if c == '"' {
+                in_quote = false;
+            }
+            continue;
+        }
+
+        match c {
+            '"' => {
+                in_quote = true;
+                current.push(c);
+            }
+            '[' => {
+                depth += 1;
+                current.push(c);
+            }
+            ']' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+                current.push(c);
+            }
+            ',' => {
+                if depth == 0 {
+                    parts.push(current.trim().to_string());
+                    current.clear();
+                } else {
+                    current.push(c);
+                }
+            }
+            _ => current.push(c),
+        }
+    }
+    if !current.trim().is_empty() {
+        parts.push(current.trim().to_string());
+    }
+    
+    parts
 }
 
 // --- Encoder ---
@@ -224,6 +307,7 @@ fn value_to_string(val: &ToonValue) -> String {
                 || s.contains(',')
                 || s.contains('"')
                 || s.trim() != s
+                || (s.starts_with('[') && s.ends_with(']'))
             {
                 // Simple escape
                 let escaped = s

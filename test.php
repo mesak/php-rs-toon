@@ -221,6 +221,20 @@ $tester->test_round_trip("Large Array", [
     "items" => range(1, 100)
 ]);
 
+// 3.5 List containing List (Explicit)
+$tester->test_round_trip("List containing List (Explicit)", [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]);
+
+// 3.6 Complex Nested Lists
+$tester->test_round_trip("Complex Nested Lists", [
+    ["a", "b"],
+    [["c", "d"], "e"],
+    "f"
+]);
+
 // ============================================================================
 // SECTION 4: MAPS & ASSOCIATIVE ARRAYS
 // ============================================================================

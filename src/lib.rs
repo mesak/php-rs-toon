@@ -103,7 +103,6 @@ fn zval_to_toon_value_impl(zval: &Zval, depth: usize) -> PhpResult<ToonValue> {
         // Detect list candidacy and defer allocating map storage until required
         let mut expected_idx = 0usize;
         let mut is_list_candidate = true;
-        let mut has_complex = false;
         let mut list_items: Vec<ToonValue> = Vec::with_capacity(len);
         let mut map_entries: Option<Vec<(String, ToonValue)>> = None;
 
@@ -123,9 +122,11 @@ fn zval_to_toon_value_impl(zval: &Zval, depth: usize) -> PhpResult<ToonValue> {
             }
 
             let val = zval_to_toon_value_impl(v, depth + 1)?;
-            let value_is_complex = matches!(val, ToonValue::Map(_) | ToonValue::Array(_));
-            if value_is_complex {
-                has_complex = true;
+            
+            // If the value is a Map, it cannot be represented in an inline list (in this format),
+            // so the container must become a Map.
+            // Lists containing Lists are fine.
+            if matches!(val, ToonValue::Map(_)) {
                 if treat_as_list_entry {
                     treat_as_list_entry = false;
                     is_list_candidate = false;
@@ -153,7 +154,7 @@ fn zval_to_toon_value_impl(zval: &Zval, depth: usize) -> PhpResult<ToonValue> {
             entries.push((key_str, val));
         }
 
-        if is_list_candidate && !has_complex {
+        if is_list_candidate {
             return Ok(ToonValue::Array(list_items));
         }
 
