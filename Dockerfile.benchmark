@@ -6,33 +6,37 @@ RUN apt-get update && apt-get install -y \
     git \
     unzip \
     curl \
+    build-essential \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Download and install php-rs-toon extension from GitHub release
-RUN mkdir -p /tmp/extension && \
-    cd /tmp/extension && \
-    curl -L https://github.com/mesak/php-rs-toon/releases/download/v1.0.0/libphp_rs_toon.so \
-    -o libphp_rs_toon.so && \
-    mv libphp_rs_toon.so $(php-config --extension-dir)/ && \
-    echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini && \
-    cd / && rm -rf /tmp/extension
+# Set working directory
+WORKDIR /app
+
+# Copy all files including the pre-compiled extension
+COPY . /app/
+
+# Copy the locally compiled extension
+RUN cp /app/libphp_rs_toon.so $(php-config --extension-dir)/ && \
+    echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini
 
 # Verify extension is loaded
 RUN php -m | grep php-rs-toon || (echo "Extension not loaded!" && exit 1)
 
-# Set working directory
-WORKDIR /app
-
 # Copy benchmark files
-COPY benchmark/ /app/
+WORKDIR /app/benchmark
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader 2>/dev/null || echo "Composer install skipped"
 
 # Make script executable
-RUN chmod +x run-benchmarks.sh
+RUN chmod +x ../run-benchmarks.sh 2>/dev/null || true
 
-CMD ["./run-benchmarks.sh"]
+# Copy performance test script
+COPY perf-test.php /app/
+
+# Run performance test as default
+CMD ["php", "-d", "extension=libphp_rs_toon.so", "/app/perf-test.php"]

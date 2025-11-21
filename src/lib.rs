@@ -83,51 +83,49 @@ fn zval_to_toon_value(zval: &Zval) -> PhpResult<ToonValue> {
         // Heuristic: if all keys are sequential integers starting from 0, treat as Array.
         // Otherwise treat as Map.
         
-        // Note: ext-php-rs HashTable iteration gives us keys.
-        // But iterating directly gives values?
-        // Let's use `iter()` which returns `(Key, &Zval)`.
-        
         let mut is_list = true;
         let mut expected_idx = 0;
-        let mut items = Vec::new();
         let mut entries = Vec::new();
+        let mut has_complex = false;
         
+        // Single pass: check list conditions and complex types simultaneously
         for (k, v) in ht.iter() {
             let val = zval_to_toon_value(v)?;
             
+            // Check if value is complex (Map or Array) during iteration
+            if !has_complex && matches!(val, ToonValue::Map(_) | ToonValue::Array(_)) {
+                has_complex = true;
+            }
+            
+            // Check if array is sequential
             if is_list {
                 if let ArrayKey::Long(idx) = k {
-                    if idx == expected_idx as i64 {
-                        expected_idx += 1;
-                        items.push(val.clone());
-                    } else {
+                    if idx != expected_idx as i64 {
                         is_list = false;
+                    } else {
+                        expected_idx += 1;
                     }
                 } else {
                     is_list = false;
                 }
             }
             
-            // Always collect entries for Map fallback
+            // Collect all entries (unified collection)
             let key_str = match k {
                 ArrayKey::Long(i) => i.to_string(),
-                ArrayKey::String(s) => s.to_string(), // String might be Cow or similar?
-                ArrayKey::Str(s) => s.to_string(), // Handle Str variant too
+                ArrayKey::String(s) => s.to_string(),
+                ArrayKey::Str(s) => s.to_string(),
             };
             entries.push((key_str, val));
         }
         
-        if is_list && !items.is_empty() {
-            // Check if any item is complex (Map or Array)
-            let has_complex = items.iter().any(|v| matches!(v, ToonValue::Map(_) | ToonValue::Array(_)));
-            if !has_complex {
-                return Ok(ToonValue::Array(items));
-            }
-            // If complex, fall through to return as Map (preserving integer keys)
-        } else if is_list && items.is_empty() {
-            // Empty array in PHP is ambiguous. Usually treated as empty list [] in JSON.
-            // But TOON might prefer empty map?
-            // Let's default to empty Array for empty PHP array.
+        // Decision: return Array or Map
+        if is_list && !entries.is_empty() && !has_complex {
+            // Extract values without cloning (move ownership)
+            let items = entries.into_iter().map(|(_, v)| v).collect();
+            return Ok(ToonValue::Array(items));
+        } else if entries.is_empty() {
+            // Empty PHP array defaults to empty list
             return Ok(ToonValue::Array(Vec::new()));
         }
         
