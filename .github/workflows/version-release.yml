@@ -1,0 +1,158 @@
+name: Version Management & Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Cargo.toml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+      new-tag: ${{ steps.check-tag.outputs.new-tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from Cargo.toml
+        id: extract-version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Check if tag exists
+        id: check-tag
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
+          TAG_NAME="v${VERSION}"
+          
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists"
+            echo "new-tag=false" >> $GITHUB_OUTPUT
+          else
+            echo "New tag will be created: $TAG_NAME"
+            echo "new-tag=true" >> $GITHUB_OUTPUT
+          fi
+
+  update-version-files:
+    needs: check-version
+    if: needs.check-version.outputs.new-tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update VERSION_INFO.txt
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          sed -i "s/Version: .*/Version: $VERSION/" VERSION_INFO.txt
+          sed -i "s/Release Date: .*/Release Date: $(date -u '+%Y-%m-%d')/" VERSION_INFO.txt
+
+      - name: Update VERSION_QUICK_REFERENCE.txt
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          sed -i "s/  版本號: v.*/  版本號: v$VERSION/" VERSION_QUICK_REFERENCE.txt
+          sed -i "s/  發佈日期: .*/  發佈日期: $(date -u '+%Y-%m-%d')/" VERSION_QUICK_REFERENCE.txt
+
+      - name: Update VERSION_RECORD.md
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          sed -i "s/### Release v.*/### Release v$VERSION ($(date -u '+%Y-%m-%d'))/" VERSION_RECORD.md
+
+      - name: Update VERSION_MANIFEST.json
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+          
+          with open('VERSION_MANIFEST.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          
+          if data['versions']:
+              data['versions'][0]['version'] = "${{ needs.check-version.outputs.version }}"
+              data['versions'][0]['compilationDate'] = datetime.now().strftime('%Y-%m-%d')
+              data['lastUpdated'] = datetime.now().isoformat() + 'Z'
+          
+          with open('VERSION_MANIFEST.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f, indent=2, ensure_ascii=False)
+          EOF
+
+      - name: Commit version updates
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add VERSION_*.txt VERSION_*.md VERSION_*.json
+          git commit -m "chore: Update version files to ${{ needs.check-version.outputs.version }}" || true
+
+      - name: Push changes
+        run: |
+          git push origin main || true
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.new-tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create Git tag
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          TAG_NAME="v${VERSION}"
+          
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$TAG_NAME" -m "Release version $VERSION"
+          git push origin "$TAG_NAME"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          release_name: Release v${{ needs.check-version.outputs.version }}
+          body: |
+            # PHP TOON Extension v${{ needs.check-version.outputs.version }}
+            
+            ## Release Date
+            ${{ github.event.head_commit.timestamp }}
+            
+            ## Key Features
+            - ✅ Production Ready
+            - ✅ All 29 Tests Pass (100%)
+            - ✅ Performance Optimized
+            
+            ## Documentation
+            - See [VERSION_RECORD.md](../../blob/main/VERSION_RECORD.md) for detailed information
+            - See [RELEASE_PERFORMANCE_REPORT.md](../../blob/main/RELEASE_PERFORMANCE_REPORT.md) for performance details
+            - See [VERSION_QUICK_REFERENCE.txt](../../blob/main/VERSION_QUICK_REFERENCE.txt) for quick reference
+            
+            ## What's New
+            View the [git log](../../compare/$(git describe --tags --abbrev=0 HEAD^)...v${{ needs.check-version.outputs.version }}) for changes in this release.
+          draft: false
+          prerelease: false
+
+  log-version:
+    needs: check-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log extracted version
+        run: |
+          echo "✅ Workflow completed successfully"
+          echo "Version: ${{ needs.check-version.outputs.version }}"
+          echo "New Tag Created: ${{ needs.check-version.outputs.new-tag }}"

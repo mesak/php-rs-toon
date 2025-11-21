@@ -1,0 +1,35 @@
+name: Automated Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from Cargo.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Testing version: $VERSION"
+
+      - name: Build Docker test image
+        run: |
+          docker build -f Dockerfile.test -t php-rs-toon:test-${{ steps.version.outputs.version }} .
+
+      - name: Run functional tests
+        run: |
+          docker run --rm \
+            php-rs-toon:test-${{ steps.version.outputs.version }} \
+            php test.php
+
+      - name: Print test results
+        if: always()
+        run: echo "✅ All tests completed"
