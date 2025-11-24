@@ -243,10 +243,6 @@ pub fn encode(val: &ToonValue) -> String {
     out.trim_end().to_string()
 }
 
-fn encode_recursive(val: &ToonValue, indent: usize, out: &mut String) {
-    encode_recursive_impl(val, indent, out, 0);
-}
-
 fn encode_recursive_impl(val: &ToonValue, indent: usize, out: &mut String, depth: usize) {
     const MAX_ENCODE_DEPTH: usize = 100;
     if depth > MAX_ENCODE_DEPTH {
