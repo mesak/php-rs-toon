@@ -56,6 +56,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release
+        run: cargo build --release
+
       - name: Create Git tag
         run: |
           VERSION=${{ needs.check-version.outputs.version }}
@@ -67,12 +73,10 @@ jobs:
           git push origin "$TAG_NAME"
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
-          release_name: Release v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
           body: |
             # PHP TOON Extension v${{ needs.check-version.outputs.version }}
             
@@ -86,6 +90,7 @@ jobs:
             
             ## What's New
             View the [git log](../../compare/$(git describe --tags --abbrev=0 HEAD^)...v${{ needs.check-version.outputs.version }}) for changes in this release.
+          files: target/release/libphp_rs_toon.so
           draft: false
           prerelease: false
 
