@@ -1,11 +1,13 @@
 # Benchmark Dockerfile
-FROM php:8.2-cli
+ARG PHP_VERSION=8.2
+FROM php:${PHP_VERSION}-cli
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
     git \
     unzip \
-    curl \
     build-essential \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
@@ -16,11 +18,16 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /app
 
+# Copy project files
+COPY . .
+
 # Download and install php-rs-toon extension from GitHub release
-ARG TOON_VERSION=1.0.3
-RUN curl -L https://github.com/mesak/php-rs-toon/releases/download/v${TOON_VERSION}/libphp_rs_toon.so \
-    -o $(php-config --extension-dir)/libphp_rs_toon.so && \
-    chmod +x $(php-config --extension-dir)/libphp_rs_toon.so && \
+ARG TOON_VERSION=1.0.5
+RUN set -eux; \
+    EXT_DIR="$(php-config --extension-dir)"; \
+    curl -L "https://github.com/mesak/php-rs-toon/releases/download/v${TOON_VERSION}/libphp_rs_toon-php${PHP_VERSION}.so" \
+    -o "${EXT_DIR}/libphp_rs_toon.so" && \
+    chmod +x "${EXT_DIR}/libphp_rs_toon.so" && \
     echo "extension=libphp_rs_toon.so" > /usr/local/etc/php/conf.d/php-rs-toon.ini
 # Verify extension is loaded
 RUN php -m | grep php-rs-toon || (echo "Extension not loaded!" && exit 1)
@@ -38,4 +45,4 @@ RUN chmod +x ../run-benchmarks.sh 2>/dev/null || true
 COPY perf-test.php /app/
 
 # Run performance test as default
-CMD ["php", "-d", "extension=libphp_rs_toon.so", "/app/perf-test.php"]
+CMD ["/bin/bash", "./run-benchmarks.sh"]
