@@ -112,6 +112,15 @@ php -d extension=target/release/libphp_rs_toon.so test.php
 # Docker 測試
 docker build -f Dockerfile.test -t php-rs-toon:test .
 docker run --rm php-rs-toon:test
+
+# 測試多個 PHP 版本 (8.1 – 8.4)
+for ver in 8.1 8.2 8.3 8.4; do
+    docker build \
+        -f Dockerfile.test \
+        -t php-rs-toon:test-$ver \
+        --build-arg PHP_VERSION=$ver .
+    docker run --rm php-rs-toon:test-$ver php test.php || exit 1
+done
 ```
 
 ---
