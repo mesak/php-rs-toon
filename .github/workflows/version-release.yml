@@ -110,23 +110,11 @@ jobs:
           path: release-artifacts
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Release v${{ needs.check-version.outputs.version }}
-          body: |
-            # PHP TOON Extension v${{ needs.check-version.outputs.version }}
-            
-            ## Release Date
-            ${{ github.event.head_commit.timestamp }}
-            
-            ## Key Features
-            - ✅ Production Ready
-            - ✅ All 29 Tests Pass (100%)
-            - ✅ Performance Optimized
-            
-            ## What's New
-            View the [git log](../../compare/$(git describe --tags --abbrev=0 HEAD^)...v${{ needs.check-version.outputs.version }}) for changes in this release.
+          generate_release_notes: true
           files: release-artifacts/**/*.so
           draft: false
           prerelease: false
